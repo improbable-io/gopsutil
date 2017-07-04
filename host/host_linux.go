@@ -55,7 +55,7 @@ func Info() (*InfoStat, error) {
 		ret.VirtualizationRole = role
 	}
 
-	boot, err := BootTime()
+	boot, err := common.BootTime()
 	if err == nil {
 		ret.BootTime = boot
 		ret.Uptime = uptime(boot)
@@ -84,40 +84,12 @@ func Info() (*InfoStat, error) {
 	return ret, nil
 }
 
-// BootTime returns the system boot time expressed in seconds since the epoch.
-func BootTime() (uint64, error) {
-	if cachedBootTime != 0 {
-		return cachedBootTime, nil
-	}
-	filename := common.HostProc("stat")
-	lines, err := common.ReadLines(filename)
-	if err != nil {
-		return 0, err
-	}
-	for _, line := range lines {
-		if strings.HasPrefix(line, "btime") {
-			f := strings.Fields(line)
-			if len(f) != 2 {
-				return 0, fmt.Errorf("wrong btime format")
-			}
-			b, err := strconv.ParseInt(f[1], 10, 64)
-			if err != nil {
-				return 0, err
-			}
-			cachedBootTime = uint64(b)
-			return cachedBootTime, nil
-		}
-	}
-
-	return 0, fmt.Errorf("could not find btime")
-}
-
 func uptime(boot uint64) uint64 {
 	return uint64(time.Now().Unix()) - boot
 }
 
 func Uptime() (uint64, error) {
-	boot, err := BootTime()
+	boot, err := common.BootTime()
 	if err != nil {
 		return 0, err
 	}
