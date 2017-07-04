@@ -3,9 +3,12 @@
 package common
 
 import (
+	"fmt"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
+	"sync/atomic"
 )
 
 func DoSysctrl(mib string) ([]string, error) {
@@ -40,4 +43,37 @@ func NumProcs() (uint64, error) {
 		return 0, err
 	}
 	return uint64(len(list)), err
+}
+
+// cachedBootTime must be accessed via atomic.Load/StoreUint64
+var cachedBootTime uint64
+
+// BootTime returns the system boot time expressed in seconds since the epoch.
+func BootTime() (uint64, error) {
+	t := atomic.LoadUint64(&cachedBootTime)
+	if t != 0 {
+		return t, nil
+	}
+	filename := HostProc("stat")
+	lines, err := ReadLines(filename)
+	if err != nil {
+		return 0, err
+	}
+	for _, line := range lines {
+		if strings.HasPrefix(line, "btime") {
+			f := strings.Fields(line)
+			if len(f) != 2 {
+				return 0, fmt.Errorf("wrong btime format")
+			}
+			b, err := strconv.ParseInt(f[1], 10, 64)
+			if err != nil {
+				return 0, err
+			}
+			t = uint64(b)
+			atomic.StoreUint64(&cachedBootTime, t)
+			return t, nil
+		}
+	}
+
+	return 0, fmt.Errorf("could not find btime")
 }
