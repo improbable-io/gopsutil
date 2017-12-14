@@ -4,7 +4,7 @@
 package host
 
 // #cgo LDFLAGS: -framework IOKit
-// #include "include/smc.c"
+// #include "include/smc.h"
 import "C"
 
 func SensorsTemperatures() ([]TemperatureStat, error) {
